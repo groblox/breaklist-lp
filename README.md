@@ -2,33 +2,34 @@
 
 ![Breaklist hero image](./docs/images/2.jpg)
 
-Breaklist is a toolkit that generates personalized morning reports, designed for thermal printers. The compact summary provides you with all your to-dos, reminders, weather forecast, and the hottest Hacker News highlights — fitting snugly on a dainty, receipt-like paper.
+Breaklist is a toolkit that generates personalized morning reports designed for thermal printers. The compact summary provides you with all your to-dos, reminders, weather forecast, Google Calendar items, and NYT headlines — fitting snugly on a receipt-like paper strip.
 
 ## Features
 
-- **Task list** — Plain-text task management via web UI or direct file editing
-- **Reminders** — Crontab-style scheduled reminders (day-of-month, month, day-of-week)
-- **Weather forecast** — 18-hour hourly forecast via [Tomorrow.io](https://docs.tomorrow.io/reference/welcome) with temperature, "RealFeel," and weather icons
-- **Hacker News digest** — Top 8 article summaries from [hacker-news-digest](https://github.com/polyrabbit/hacker-news-digest)
-- **Web app** — SvelteKit-based interface for managing tasks with dark/light mode
-- **Dual calendar** — Displays both Persian (Jalali) and Gregorian dates
-- **Cross-platform** — Builds for macOS, Linux, and Windows (amd64, arm64, arm, 386)
+- **Task List & Reminders** — Plain-text task management via SvelteKit web UI, local files, or auto-synced/backed up via Dropbox.
+- **Google Calendar** — Displays upcoming calendar events (supporting timed, multi-day, and all-day items) from a specific calendar (e.g. `HeineCal`).
+- **Weather Forecast** — Detailed forecast from [Tomorrow.io](https://docs.tomorrow.io/reference/welcome) with temperature, "RealFeel," and B&W optimized weather icons.
+- **Personal Weather Station Stats** — Integrates with local weather stations via the [Aeris Weather API](https://www.aerisweather.com/) (e.g. temperature, humidity, wind speed, and rain metrics).
+- **New York Times Digest** — Scrapes and displays the latest top headlines.
+- **Far Side Comic** — Renders a daily random B&W Far Side cartoon from a local scraped library.
+- **Web App** — SvelteKit-based interface for managing tasks with dark/light mode toggle.
+- **Cross-Platform** — Builds for macOS, Linux, and Windows (amd64, arm64, arm, 386).
 
 <details>
 <summary>📱 Web App Screenshots</summary>
-  <img alt="Task list view" src="https://github.com/alibahmanyar/breaklist/blob/main/docs/images/m1.png" style="width:33%"/>
-  <img alt="Add task view" src="https://github.com/alibahmanyar/breaklist/blob/main/docs/images/m2.png" style="width:33%"/>
-  <img alt="Dark mode view" src="https://github.com/alibahmanyar/breaklist/blob/main/docs/images/m3.png" style="width:33%"/>
+  <img alt="Task list view" src="https://github.com/groblox/breaklist-lp/blob/main/docs/images/m1.png" style="width:33%"/>
+  <img alt="Add task view" src="https://github.com/groblox/breaklist-lp/blob/main/docs/images/m2.png" style="width:33%"/>
+  <img alt="Dark mode view" src="https://github.com/groblox/breaklist-lp/blob/main/docs/images/m3.png" style="width:33%"/>
 </details>
 
 <details>
 <summary>🧾 Complete Report Example</summary>
-  <img alt="Full thermal printer report" src="https://github.com/alibahmanyar/breaklist/blob/main/docs/images/1.jpg"/>
+  <img alt="Full thermal printer report" src="https://github.com/groblox/breaklist-lp/blob/main/docs/images/1.jpg"/>
 </details>
 
 ## Architecture
 
-Breaklist consists of three independent components that share data through plain-text `.list` files:
+Breaklist consists of three independent components that share data through plain-text `.list` files (optionally synced with Dropbox):
 
 ```
 ┌──────────────────┐      ┌───────────────────────┐      ┌──────────────────┐
@@ -38,10 +39,11 @@ Breaklist consists of three independent components that share data through plain
 └──────────────────┘      └───────────────────────┘      └────────┬─────────┘
                                                                   │
                           ┌───────────────────────┐               │
-                          │  Report Generator     │───────────────┘
+                          │  Report Generator     │───────────────┘ (or via Dropbox)
                           │  Go CLI               │──▶ Tomorrow.io API
-                          │  Outputs PDF via       │──▶ Hacker News Digest
-                          │  wkhtmltopdf           │──▶ breaklist.pdf
+                          │  Outputs PDF via      │──▶ Aeris Weather API
+                          │  wkhtmltopdf          │──▶ Google Calendar API
+                          │  grayscale mode       │──▶ breaklist.pdf
                           └───────────────────────┘
 ```
 
@@ -59,21 +61,17 @@ Breaklist consists of three independent components that share data through plain
 ### Prerequisites
 
 - **[wkhtmltopdf](https://wkhtmltopdf.org/downloads.html)** — Required by the report generator to convert HTML to PDF
-- **[Tomorrow.io API key](https://docs.tomorrow.io/reference/welcome)** — Required for weather forecast data
+- **[Tomorrow.io API Key](https://docs.tomorrow.io/reference/welcome)** — Required for weather forecast data
 - **[Go 1.21+](https://go.dev/dl/)** — Required if building from source
 - **[Node.js & npm](https://nodejs.org/)** — Required if building the frontend from source
 
 ### Installation
 
-#### Option 1: Download a Release
-
-Download the latest pre-built binaries from the [GitHub Releases](https://github.com/alibahmanyar/breaklist/releases/latest) page.
-
-#### Option 2: Build from Source
+#### Build from Source
 
 ```sh
-git clone git@github.com:alibahmanyar/breaklist.git
-cd breaklist
+git clone https://github.com/groblox/breaklist-lp.git
+cd breaklist-lp
 make setup    # Install frontend npm dependencies
 make          # Build all components
 ```
@@ -94,15 +92,38 @@ build/
 
 Duplicate `.env.example` and rename it to `.env`, then populate the variables:
 
-| Variable | Required By | Description | Example |
+| Variable | Component | Description | Example |
 |----------|------------|-------------|---------|
 | `TOMORROW_API_KEY` | reportGenerator | Tomorrow.io API key for weather data | `abc123def456` |
-| `LOCATION` | reportGenerator | Location for weather forecast (city name or coordinates) | `London` |
-| `TIMEZONE` | reportGenerator | IANA timezone identifier | `Europe/London` |
-| `TASKS_LIST_PATH` | both | Path to the tasks file | `./tasks.list` |
-| `REMINDERS_LIST_PATH` | both | Path to the reminders file | `./reminders.list` |
+| `LOCATION` | reportGenerator | Location coordinates for forecast | `33.4054,-86.8114` |
+| `TIMEZONE` | reportGenerator | IANA timezone identifier | `America/Chicago` |
+| `TASKS_LIST_PATH` | both | Path to local tasks file (fallback) | `./tasks.list` |
+| `REMINDERS_LIST_PATH` | both | Path to local reminders file | `./reminders.list` |
+| `GOOGLE_CLIENT_ID` | reportGenerator | Google OAuth 2.0 Client ID | `82441593318-...apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | reportGenerator | Google OAuth 2.0 Client Secret | `GOCSPX-...` |
+| `GOOGLE_CALENDAR_ID` | reportGenerator | Specific Google Calendar Name or ID | `HeineCal` |
+| `GOOGLE_REFRESH_TOKEN` | reportGenerator | Authenticated Google Refresh Token | *(Set via CLI auth)* |
+| `DROPBOX_APP_KEY` | both | Dropbox App Key for backup | `vmj3ivdahewiqzu` |
+| `DROPBOX_REFRESH_TOKEN` | both | Authenticated Dropbox Refresh Token | *(Set via CLI auth)* |
+| `DROPBOX_FILE_PATH` | both | Path to list in Dropbox | `/breaklist/tasks.list` |
 
-> **Important:** Both the backend and report generator must point to the **same** `.list` files for task/reminder data to stay in sync.
+### Setting Up Authentication
+
+To authorize Google Calendar or Dropbox, run the CLI authorization flows:
+
+#### Google Calendar Authorization
+```sh
+# Run the reportGenerator with the auth-google flag:
+./reportGenerator --auth-google
+```
+This will open your web browser, prompt you to sign in with Google, and automatically save the required refresh token to your `.env` file.
+
+#### Dropbox Integration
+```sh
+# Run the reportGenerator with the auth flag:
+./reportGenerator --auth
+```
+This will open your web browser, prompt you to link your Dropbox account, and save the refresh token to your `.env` file for automatic task-list backups/syncing.
 
 ### Usage
 
@@ -124,45 +145,6 @@ Generates `breaklist.pdf` in the current directory, ready to print on a thermal 
 
 > **Tip:** Schedule the report generator with cron (Linux/macOS) or Task Scheduler (Windows) to generate your report every morning automatically.
 
-### Data Files
-
-#### `tasks.list`
-
-Plain-text file with one task per line. Lines starting with `#` are treated as comments and ignored.
-
-```
-Buy groceries
-Finish project report
-Call dentist
-```
-
-#### `reminders.list`
-
-Crontab-style format using 3 fields (day-of-month, month, day-of-week) separated by spaces, followed by a `|` delimiter and the reminder text.
-
-```
-#.---------- day of month (1 - 31)
-#|  .------- month (1 - 12) OR jan,feb,mar,apr ...
-#|  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
-#|  |  |
-
-* * *|Take vitamins (Every day)
-*/2 * *|Water the plants (Every other day)
-* * 6,0|Weekend review (Saturdays and Sundays)
-1 * *|Pay rent (1st of every month)
-* 1,7 *|Seasonal check-in (January and July)
-```
-
-**Supported cron syntax:**
-
-| Pattern | Meaning | Example |
-|---------|---------|---------|
-| `*` | Every value | `* * *` = every day |
-| `N` | Specific value | `15 * *` = 15th of month |
-| `N,M` | Multiple values | `1,15 * *` = 1st and 15th |
-| `*/N` | Every N-th value | `*/3 * *` = every 3rd day |
-| `*/N,M` | Mixed | `*/2,5 * *` = every 2nd day + 5th |
-
 ## Development
 
 For detailed development setup and contribution guidelines, see [`docs/DEVELOPMENT.md`](./docs/DEVELOPMENT.md).
@@ -177,45 +159,6 @@ go run .
 # Terminal 2: Run the frontend dev server  
 cd frontend/breaklist
 npm run dev
-```
-
-### Project Structure
-
-```
-breaklist/
-├── backend/                # Go web server (Fiber)
-│   ├── main.go             # API handlers and server setup
-│   ├── go.mod              # Go module definition
-│   └── .env.example        # Environment variable template
-├── frontend/
-│   └── breaklist/          # SvelteKit application
-│       ├── src/
-│       │   ├── routes/
-│       │   │   ├── +page.svelte   # Main app UI (single page)
-│       │   │   └── +layout.ts     # Static prerender config
-│       │   ├── app.html           # HTML shell
-│       │   └── app.d.ts           # TypeScript declarations
-│       ├── package.json
-│       └── svelte.config.js
-├── reportGenerator/        # PDF report generator CLI
-│   ├── main.go             # Report orchestration + cron matching
-│   ├── weatherReport.go    # Tomorrow.io API integration
-│   ├── getHNArticles.go    # Hacker News scraper (Colly)
-│   ├── template.html       # Go HTML template for the report
-│   ├── main_test.go        # Unit tests (cron matching)
-│   ├── weathercodes/       # 152 weather icon PNGs
-│   ├── go.mod              # Go module definition
-│   └── .env.example        # Environment variable template
-├── weatherIcons/           # Icon preprocessing utility
-│   ├── threshold.py        # Adaptive thresholding for B&W
-│   ├── raw/                # Original weather icons
-│   └── thresholded/        # Processed icons
-├── docs/                   # Documentation and images
-│   └── images/             # Screenshots and photos
-├── go.work                 # Go workspace (multi-module)
-├── makefile                # Build system
-├── .goreleaser.yaml        # Cross-platform release config
-└── .gitignore
 ```
 
 ## License
