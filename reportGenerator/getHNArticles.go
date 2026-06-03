@@ -9,7 +9,7 @@ import (
 	"github.com/gocolly/colly"
 )
 
-// Hacker News' article
+// hnArticle represents a Hacker News article with its metadata.
 type hnArticle struct {
 	Title   string
 	Summary string
@@ -36,8 +36,12 @@ func formatDuration(duration time.Duration) string {
 	}
 }
 
-func getHNArticles() []hnArticle {
-	articles := []hnArticle{}
+// getHNArticles scrapes the top Hacker News articles from the hacker-news-digest
+// site and returns them sorted by rank.
+func getHNArticles() ([]hnArticle, error) {
+	var articles []hnArticle
+	var scrapeErr error
+
 	c := colly.NewCollector()
 
 	c.OnHTML("article", func(e *colly.HTMLElement) {
@@ -58,18 +62,23 @@ func getHNArticles() []hnArticle {
 				Time:    articleTimeFormatted,
 			})
 		}
-
 	})
 
-	c.Visit("https://hackernews.betacat.io/")
+	c.OnError(func(r *colly.Response, err error) {
+		scrapeErr = fmt.Errorf("scraping HN digest: %w", err)
+	})
+
+	if err := c.Visit("https://hackernews.betacat.io/"); err != nil {
+		return nil, fmt.Errorf("visiting HN digest: %w", err)
+	}
+
+	if scrapeErr != nil {
+		return nil, scrapeErr
+	}
 
 	sort.Slice(articles, func(i, j int) bool {
 		return articles[i].Rank < articles[j].Rank
 	})
 
-	return articles
+	return articles, nil
 }
-
-// func main() {
-// 	getHNArticles()
-// }

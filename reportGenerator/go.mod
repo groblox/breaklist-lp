@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/gocolly/colly v1.2.0
 	github.com/joho/godotenv v1.5.1
-	github.com/yaa110/go-persian-calendar v1.1.5
+	shared v0.0.0
 )
 
 require (
@@ -24,3 +24,5 @@ require (
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 )
+
+replace shared => ../shared
